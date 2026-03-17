@@ -6,7 +6,7 @@ A clean, animated 2048 puzzle game built with vanilla JavaScript — no framewor
 
 ## Play
 
-**[Play Now](https://2048-game-ezechias1.vercel.app)**
+**[Play Now](https://2048-game-three-mu.vercel.app)**
 
 ## Features
 
