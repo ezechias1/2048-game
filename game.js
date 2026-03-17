@@ -9,12 +9,178 @@
     var tileContainer = document.getElementById('tileContainer');
     var scoreEl = document.getElementById('score');
     var bestEl = document.getElementById('best');
+    var scoreAddEl = document.getElementById('scoreAdd');
     var overlay = document.getElementById('overlay');
     var overlayText = document.getElementById('overlayText');
 
     bestEl.textContent = best;
 
-    // Tile size/gap calculations
+    // ==========================================
+    // SOUND ENGINE (Web Audio API — no files)
+    // ==========================================
+    var audioCtx = null;
+    var soundEnabled = localStorage.getItem('2048-sound') !== 'off';
+
+    function getAudioCtx() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        return audioCtx;
+    }
+
+    function playTone(freq, duration, type, volume) {
+        if (!soundEnabled) return;
+        try {
+            var ctx = getAudioCtx();
+            var osc = ctx.createOscillator();
+            var gain = ctx.createGain();
+            osc.type = type || 'sine';
+            osc.frequency.value = freq;
+            gain.gain.value = volume || 0.08;
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + duration);
+        } catch (e) {}
+    }
+
+    function sfxMove() {
+        playTone(220, 0.08, 'triangle', 0.06);
+    }
+
+    function sfxMerge(value) {
+        var freq = 300 + Math.min(value, 2048) * 0.3;
+        playTone(freq, 0.15, 'sine', 0.1);
+        setTimeout(function() { playTone(freq * 1.5, 0.1, 'sine', 0.06); }, 50);
+    }
+
+    function sfxWin() {
+        var notes = [523, 659, 784, 1047];
+        notes.forEach(function(n, i) {
+            setTimeout(function() { playTone(n, 0.3, 'sine', 0.1); }, i * 120);
+        });
+    }
+
+    function sfxGameOver() {
+        playTone(200, 0.3, 'sawtooth', 0.06);
+        setTimeout(function() { playTone(150, 0.4, 'sawtooth', 0.04); }, 150);
+    }
+
+    function sfxNewGame() {
+        playTone(440, 0.1, 'triangle', 0.06);
+        setTimeout(function() { playTone(550, 0.1, 'triangle', 0.06); }, 80);
+    }
+
+    // Sound toggle
+    var soundBtn = document.getElementById('soundBtn');
+    function updateSoundBtn() {
+        soundBtn.classList.toggle('muted', !soundEnabled);
+        soundBtn.title = soundEnabled ? 'Mute Sound' : 'Unmute Sound';
+    }
+    updateSoundBtn();
+
+    soundBtn.addEventListener('click', function() {
+        soundEnabled = !soundEnabled;
+        localStorage.setItem('2048-sound', soundEnabled ? 'on' : 'off');
+        updateSoundBtn();
+        if (soundEnabled) {
+            getAudioCtx();
+            playTone(440, 0.1, 'triangle', 0.06);
+        }
+    });
+
+    // ==========================================
+    // THEMES
+    // ==========================================
+    var themes = ['dark', 'light', 'retro', 'neon'];
+    var currentTheme = localStorage.getItem('2048-theme') || 'dark';
+
+    function applyTheme(theme) {
+        document.body.className = theme === 'dark' ? '' : 'theme-' + theme;
+        currentTheme = theme;
+        localStorage.setItem('2048-theme', theme);
+    }
+    applyTheme(currentTheme);
+
+    document.getElementById('themeBtn').addEventListener('click', function() {
+        var idx = themes.indexOf(currentTheme);
+        var next = themes[(idx + 1) % themes.length];
+        applyTheme(next);
+    });
+
+    // ==========================================
+    // LEADERBOARD
+    // ==========================================
+    var leaderboard = JSON.parse(localStorage.getItem('2048-leaderboard') || '[]');
+    var lbModal = document.getElementById('leaderboardModal');
+    var lbBody = document.getElementById('lbBody');
+    var lbEmpty = document.getElementById('lbEmpty');
+
+    function saveLeaderboard() {
+        localStorage.setItem('2048-leaderboard', JSON.stringify(leaderboard));
+    }
+
+    function addToLeaderboard(finalScore, bestTile) {
+        if (finalScore === 0) return;
+        leaderboard.push({
+            score: finalScore,
+            tile: bestTile,
+            date: new Date().toLocaleDateString()
+        });
+        leaderboard.sort(function(a, b) { return b.score - a.score; });
+        if (leaderboard.length > 10) leaderboard = leaderboard.slice(0, 10);
+        saveLeaderboard();
+    }
+
+    function getBestTile() {
+        var maxVal = 0;
+        for (var r = 0; r < SIZE; r++) {
+            for (var c = 0; c < SIZE; c++) {
+                if (grid[r][c] && grid[r][c].value > maxVal) {
+                    maxVal = grid[r][c].value;
+                }
+            }
+        }
+        return maxVal;
+    }
+
+    function renderLeaderboard() {
+        lbBody.innerHTML = '';
+        if (leaderboard.length === 0) {
+            lbEmpty.classList.remove('hidden');
+            return;
+        }
+        lbEmpty.classList.add('hidden');
+        leaderboard.forEach(function(entry, i) {
+            var tr = document.createElement('tr');
+            tr.innerHTML = '<td>' + (i + 1) + '</td><td>' + entry.score.toLocaleString() + '</td><td>' + entry.tile + '</td><td>' + entry.date + '</td>';
+            lbBody.appendChild(tr);
+        });
+    }
+
+    document.getElementById('leaderboardBtn').addEventListener('click', function() {
+        renderLeaderboard();
+        lbModal.classList.remove('hidden');
+    });
+
+    document.getElementById('closeLeaderboard').addEventListener('click', function() {
+        lbModal.classList.add('hidden');
+    });
+
+    lbModal.addEventListener('click', function(e) {
+        if (e.target === lbModal) lbModal.classList.add('hidden');
+    });
+
+    document.getElementById('clearLbBtn').addEventListener('click', function() {
+        leaderboard = [];
+        saveLeaderboard();
+        renderLeaderboard();
+    });
+
+    // ==========================================
+    // GAME LOGIC
+    // ==========================================
     function getTileSize() {
         var containerWidth = tileContainer.offsetWidth;
         var gap = containerWidth > 400 ? 8 : 6;
@@ -31,7 +197,6 @@
         };
     }
 
-    // Initialize empty grid
     function initGrid() {
         grid = [];
         for (var r = 0; r < SIZE; r++) {
@@ -42,7 +207,6 @@
         }
     }
 
-    // Create a tile DOM element
     function createTileEl(value, row, col, isNew) {
         var el = document.createElement('div');
         var pos = tilePos(row, col);
@@ -57,7 +221,6 @@
         return el;
     }
 
-    // Add a random tile (2 or 4)
     function addRandomTile() {
         var empty = [];
         for (var r = 0; r < SIZE; r++) {
@@ -73,7 +236,6 @@
         grid[spot.r][spot.c] = { value: value, el: el };
     }
 
-    // Render all tiles (rebuild DOM)
     function renderTiles() {
         tileContainer.innerHTML = '';
         for (var r = 0; r < SIZE; r++) {
@@ -88,14 +250,11 @@
         }
     }
 
-    // Slide a single row left, return { row, scored, moved }
     function slideRow(row) {
         var arr = row.filter(function(t) { return t !== null; });
         var scored = 0;
-        var merged = [];
         var moved = false;
 
-        // Merge
         for (var i = 0; i < arr.length - 1; i++) {
             if (arr[i].value === arr[i + 1].value) {
                 arr[i].value *= 2;
@@ -105,12 +264,10 @@
             }
         }
 
-        // Pad
         while (arr.length < SIZE) {
             arr.push(null);
         }
 
-        // Check if moved
         for (var i = 0; i < SIZE; i++) {
             var oldVal = row[i] ? row[i].value : 0;
             var newVal = arr[i] ? arr[i].value : 0;
@@ -120,7 +277,6 @@
         return { row: arr, scored: scored, moved: moved };
     }
 
-    // Extract row/col based on direction
     function getLine(dir, idx) {
         var line = [];
         for (var i = 0; i < SIZE; i++) {
@@ -141,10 +297,25 @@
         }
     }
 
+    // Score float animation
+    var scoreAddTimeout;
+    function showScoreAdd(points) {
+        clearTimeout(scoreAddTimeout);
+        scoreAddEl.textContent = '+' + points;
+        scoreAddEl.classList.remove('hidden');
+        scoreAddEl.style.animation = 'none';
+        scoreAddEl.offsetHeight; // reflow
+        scoreAddEl.style.animation = '';
+        scoreAddTimeout = setTimeout(function() {
+            scoreAddEl.classList.add('hidden');
+        }, 600);
+    }
+
     function move(dir) {
         if (moving) return;
         var totalScored = 0;
         var anyMoved = false;
+        var hadMerge = false;
 
         for (var i = 0; i < SIZE; i++) {
             var line = getLine(dir, i);
@@ -157,28 +328,33 @@
         if (!anyMoved) return;
 
         moving = true;
+        sfxMove();
+
         score += totalScored;
         scoreEl.textContent = score;
+        if (totalScored > 0) showScoreAdd(totalScored);
+
         if (score > best) {
             best = score;
             bestEl.textContent = best;
             localStorage.setItem('2048-best', best);
         }
 
-        // Animate tiles to new positions
         renderTiles();
 
-        // Mark merged tiles
         for (var r = 0; r < SIZE; r++) {
             for (var c = 0; c < SIZE; c++) {
                 if (grid[r][c] && grid[r][c].merged) {
                     grid[r][c].el.classList.add('merged');
                     grid[r][c].merged = false;
+                    hadMerge = true;
+                    sfxMerge(grid[r][c].value);
 
-                    // Check win
                     if (grid[r][c].value === 2048 && !won) {
                         won = true;
+                        sfxWin();
                         setTimeout(function() {
+                            addToLeaderboard(score, getBestTile());
                             overlayText.textContent = 'You Win!';
                             overlayText.className = 'overlay-text win';
                             overlay.classList.remove('hidden');
@@ -193,6 +369,8 @@
             moving = false;
 
             if (isGameOver()) {
+                sfxGameOver();
+                addToLeaderboard(score, getBestTile());
                 setTimeout(function() {
                     overlayText.textContent = 'Game Over!';
                     overlayText.className = 'overlay-text';
@@ -223,6 +401,7 @@
         scoreEl.textContent = '0';
         addRandomTile();
         addRandomTile();
+        sfxNewGame();
     }
 
     // Keyboard
@@ -262,7 +441,6 @@
         touchStartY = null;
     }, { passive: true });
 
-    // Prevent scroll on board
     board.addEventListener('touchmove', function(e) {
         e.preventDefault();
     }, { passive: false });

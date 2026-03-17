@@ -2,7 +2,9 @@
 
 A clean, animated 2048 puzzle game built with vanilla JavaScript — no frameworks, no dependencies.
 
-![2048 Gameplay](screenshot-gameplay.png)
+| Dark | Light | Retro | Neon |
+|------|-------|-------|------|
+| ![Dark](screenshot-dark.png) | ![Light](screenshot-light.png) | ![Retro](screenshot-retro.png) | ![Neon](screenshot-neon.png) |
 
 ## Play
 
@@ -13,7 +15,10 @@ A clean, animated 2048 puzzle game built with vanilla JavaScript — no framewor
 - Smooth tile slide and merge animations
 - Swipe support for mobile
 - Score tracking with persistent best score
-- Dark theme with vibrant tile colors
+- 4 themes — Dark, Light, Retro, Neon
+- Sound effects (Web Audio API — no files needed)
+- Leaderboard — top 10 scores saved locally
+- Score pop animation on merge
 - Fully responsive — works on any screen size
 - Zero dependencies — pure HTML, CSS, and JS
 
@@ -27,8 +32,8 @@ A clean, animated 2048 puzzle game built with vanilla JavaScript — no framewor
 ## Tech Stack
 
 - HTML5
-- CSS3 (Grid, animations, transitions)
-- Vanilla JavaScript (ES5)
+- CSS3 (Grid, custom properties, animations)
+- Vanilla JavaScript (Web Audio API for sound)
 
 ## Run Locally
 
