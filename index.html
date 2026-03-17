@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>2048</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>2048</h1>
+            <div class="scores">
+                <div class="score-box">
+                    <span class="score-label">Score</span>
+                    <span class="score-value" id="score">0</span>
+                </div>
+                <div class="score-box">
+                    <span class="score-label">Best</span>
+                    <span class="score-value" id="best">0</span>
+                </div>
+            </div>
+        </header>
+        <p class="tagline">Join the tiles, get to <strong>2048!</strong></p>
+        <button class="new-game-btn" id="newGameBtn">New Game</button>
+        <div class="board" id="board">
+            <div class="grid-bg">
+                <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+                <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+                <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+                <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+            </div>
+            <div class="tile-container" id="tileContainer"></div>
+            <div class="overlay hidden" id="overlay">
+                <div class="overlay-text" id="overlayText">Game Over!</div>
+                <button class="new-game-btn" id="retryBtn">Try Again</button>
+            </div>
+        </div>
+        <p class="instructions">Use <strong>arrow keys</strong> or <strong>swipe</strong> to move tiles.</p>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>
